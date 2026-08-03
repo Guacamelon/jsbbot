@@ -30,7 +30,7 @@ GUILD_ID = discord.Object(id=1165318900892839946)
 
 database = sqlite3.connect('playerstest.db')
 cursor = database.cursor()
-database.execute("CREATE TABLE IF NOT EXISTS consoletest(user_id STR, display STR, pronouns STR, bp_total INT, bp_steam INT, bp_nswitch INT, bp_playst INT, bp_xbox INT, bp_stadia INT, shape STR, track STR, artist STR, color STR, vetted INT, avatar STR)")
+database.execute("CREATE TABLE IF NOT EXISTS consoletest(user_id INT, user_name STR, bp_total INT, bp_steam INT, bp_nswitch INT, bp_playst INT, bp_xbox INT, bp_stadia INT, vetted INT, display_name STR, pronouns STR, shape STR, track STR, artist STR, color STR)")
 
 
 
@@ -41,7 +41,8 @@ async def nitroFun(interaction: discord.Interaction):
 @client.tree.command(name="setbp", description="Set how many beatpoints you've collected", guild=GUILD_ID)
 async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=None, playstation: int=None, xbox: int=None):
 
-   interaction_user = str(interaction.user.name)
+   interaction_user = interaction.user.id
+   interaction_username = interaction.user.name
 
    cursor.execute(f"SELECT * FROM consoletest WHERE user_id = '{interaction_user}'")
    result = cursor.fetchone()
@@ -49,7 +50,7 @@ async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=
    if result is None:
       vetted = 0
    else:
-      vetted = result[13]
+      vetted = result[8]
 
    if (steam or nswitch or playstation or xbox) < 750000 or vetted == 1:
       if result is None:
@@ -64,31 +65,42 @@ async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=
          if xbox is None:
             xbox = 0
 
-         query = "INSERT INTO consoletest (user_id, bp_total, bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia, vetted, avatar) VALUES (?, 0, ?, ?, ?, ?, 0, 0, ?)"
-         cursor.execute(query, (interaction_user, steam, nswitch, playstation, xbox, interaction.user.avatar.url))
+         query = "INSERT INTO consoletest (user_id, bp_total, bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia, vetted) VALUES (?, 0, ?, ?, ?, ?, 0, 0)"
+         cursor.execute(query, (interaction_user, steam, nswitch, playstation, xbox,))
          database.commit()
 
-         print(f"NEW: Set {interaction_user}'s bp!")
+         print(f"NEW: Set {interaction_username}'s bp!")
          await interaction.response.send_message(f"Your beatpoints were set for the first time!")
       
       else: 
       # Update existing record
 
-         if steam is None:
-            steam = result[4]
-         if nswitch is None:
-            nswitch = result[5]
-         if playstation is None:
-            playstation = result[6]
-         if xbox is None:
-            xbox = result[7]
 
-         query = (f"UPDATE consoletest SET bp_steam = ?, bp_nswitch = ?, bp_playst = ?, bp_xbox = ?, avatar = ? WHERE user_id = '{interaction_user}'")
-         cursor.execute(query, (steam, nswitch, playstation, xbox, interaction.user.avatar.url))
+         print(f"Steam input: {steam}")
+         print(f"NSwitch input: {nswitch}")
+         print(f"Playstation input: {playstation}")
+         print(f"Xbox input: {xbox}")
+
+         if steam is None:
+            steam = result[3]
+         if nswitch is None:
+            nswitch = result[4]
+         if playstation is None:
+            playstation = result[5]
+         if xbox is None:
+            xbox = result[6]
+
+         print(f"Steam output: {steam}")
+         print(f"NSwitch output: {nswitch}")
+         print(f"Playstation output: {playstation}")
+         print(f"Xbox output: {xbox}")
+
+         query = (f"UPDATE consoletest SET bp_steam = ?, bp_nswitch = ?, bp_playst = ?, bp_xbox = ? WHERE user_id = '{interaction_user}'")
+         cursor.execute(query, (steam, nswitch, playstation, xbox,))
          database.commit()
 
-         print(f"Set {interaction_user}'s bp!")
-         await interaction.response.send_message(f"Your bp count was updated to!", ephemeral=True)
+         print(f"Set {interaction_username}'s bp!")
+         await interaction.response.send_message(f"Your bp count was updated!", ephemeral=True)
 
       # Update bp total
       cursor.execute(f"SELECT bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia FROM consoletest WHERE user_id = '{interaction_user}'")
@@ -100,16 +112,25 @@ async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=
       database.commit()
 
    else:
-      print(f"Hey! {interaction_user} tried to set bp to a high amount. Needs vetting.")
+      print(f"Hey! {interaction_username} tried to set bp to a high amount. Needs vetting.")
       await interaction.response.send_message(f"Anything above 750,000 bp needs verification!", ephemeral=True)
 
 @client.tree.command(name="beatpoints", description="Show how many beatpoints total you've collected! [Type username plain for other users]", guild=GUILD_ID)
 async def bpShow(interaction: discord.Interaction, user: str=None):
 
-   interaction_user = str(interaction.user.name)
+   interaction_user = interaction.user.id
+   interaction_username = str(interaction.user.name)
+
    if user is None:
       user = interaction_user
-   cursor.execute(f"SELECT bp_total, bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia, vetted, avatar FROM consoletest WHERE user_id = '{user}'")
+   else:
+      user_mention = user.replace("<", "")
+      user_mention = user_mention.replace("@", "")
+      user_mention = user_mention.replace(">", "")
+      user = int(user_mention)
+
+   
+   cursor.execute(f"SELECT bp_total, bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia, vetted FROM consoletest WHERE user_id = '{user}'")
    data = cursor.fetchone()
 
    bp_total = data[0]
@@ -119,7 +140,10 @@ async def bpShow(interaction: discord.Interaction, user: str=None):
    bp_xbox = data[4]
    bp_stadia = data[5]
    vetted = data[6]
-   avatar_url = data[7]
+   user_info = client.get_user(user)
+
+   print(user)
+   print(user_info)
 
    if bp_total >= 1000000:
       embedcolor = '#E29BCC'
@@ -139,7 +163,7 @@ async def bpShow(interaction: discord.Interaction, user: str=None):
       embedcolor = '#004C51'
 
    embed = discord.Embed(title=(f"{bp_total:,}"), description="total amount of bp collected", color=discord.Colour.from_str(embedcolor))
-   embed.set_author(name=user, icon_url=avatar_url)
+   embed.set_author(name="test", icon_url="")
    if bp_steam > 0:
       embed.add_field(name="Steam", value=(f"{bp_steam:,}"), inline=True)
    if bp_nswitch > 0:
@@ -158,26 +182,29 @@ async def bpShow(interaction: discord.Interaction, user: str=None):
 @client.tree.command(name="ribbon", description="Show your ribbon with your profile! [Type username plain for other users]", guild=GUILD_ID)
 async def ribbonShow(interaction: discord.Interaction, user: str=None):
 
-   interaction_user = interaction.user.name
+   interaction_user = interaction.user.id
+   interaction_username = str(interaction.user.name)
+
    if user is None:
       user = interaction_user
+   user_mention = user.replace("<", "")
+   user_mention = user_mention.replace("@", "")
+   user_mention = user_mention.replace(">", "")
+   user = int(user_mention)
+
    cursor.execute(f"SELECT * FROM consoletest WHERE user_id = '{user}'")
    data = cursor.fetchone()
 
-   print(interaction.user.name)
-
-   str_user = client.get_user(user)
-
-   username = data[0]
-   display = data[1]
-   pronouns = data[2]
+   user_info = client.get_user(user)
+   display = data[9]
+   pronouns = data[10]
    bp_total = data[3]
-   shape = data[4]
-   track = data[5]
-   artist = data[6]
-   usercolor = data[7]
+   shape = data[11]
+   track = data[12]
+   artist = data[13]
+   usercolor = data[14]
    vetted = data[8]
-   avatar_url = data[9]
+   avatar_url = user_info.avatar.url
 
    if bp_total >= 1000000:
       embedcolor = '#E29BCC'
@@ -197,7 +224,7 @@ async def ribbonShow(interaction: discord.Interaction, user: str=None):
       embedcolor = '#004C51'
 
    embed = discord.Embed(title=display, description=pronouns, color=discord.Colour.from_str(embedcolor))
-   embed.set_author(name=username, icon_url=avatar_url)
+   embed.set_author(name=user_info.name, icon_url=avatar_url)
    embed.set_thumbnail(url="https://soggy.cat/static/ssoggycat/main/images/soggycat.webp")
    embed.add_field(name=bp_total, value="total amount of bp collected")
    
