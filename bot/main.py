@@ -52,7 +52,7 @@ async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=
    else:
       vetted = result[8]
 
-   if (steam or nswitch or playstation or xbox) < 750000 or vetted == 1:
+   if ((steam or nswitch or playstation or xbox) > 0 and (steam or nswitch or playstation or xbox) < 750000) or vetted == 1:
       if result is None:
       # Create new record
 
@@ -65,8 +65,8 @@ async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=
          if xbox is None:
             xbox = 0
 
-         query = "INSERT INTO consoletest (user_id, bp_total, bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia, vetted) VALUES (?, 0, ?, ?, ?, ?, 0, 0)"
-         cursor.execute(query, (interaction_user, steam, nswitch, playstation, xbox,))
+         query = "INSERT INTO consoletest (user_id, user_name, bp_total, bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia, vetted) VALUES (?, ?, 0, ?, ?, ?, ?, 0, 0)"
+         cursor.execute(query, (interaction_user, interaction_username, steam, nswitch, playstation, xbox,))
          database.commit()
 
          print(f"NEW: Set {interaction_username}'s bp!")
@@ -74,13 +74,8 @@ async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=
       
       else: 
       # Update existing record
-
-
-         print(f"Steam input: {steam}")
-         print(f"NSwitch input: {nswitch}")
-         print(f"Playstation input: {playstation}")
-         print(f"Xbox input: {xbox}")
-
+      # BUG Can't set bp's to 0, except xbox for some reason. application error
+   
          if steam is None:
             steam = result[3]
          if nswitch is None:
@@ -89,11 +84,6 @@ async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=
             playstation = result[5]
          if xbox is None:
             xbox = result[6]
-
-         print(f"Steam output: {steam}")
-         print(f"NSwitch output: {nswitch}")
-         print(f"Playstation output: {playstation}")
-         print(f"Xbox output: {xbox}")
 
          query = (f"UPDATE consoletest SET bp_steam = ?, bp_nswitch = ?, bp_playst = ?, bp_xbox = ? WHERE user_id = '{interaction_user}'")
          cursor.execute(query, (steam, nswitch, playstation, xbox,))
@@ -110,6 +100,9 @@ async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=
       query = (f"UPDATE consoletest SET bp_total = ? WHERE user_id = '{interaction_user}'")
       cursor.execute(query, (int_bptotal,))
       database.commit()
+
+   elif (steam or nswitch or playstation or xbox) == 0:
+      await interaction.response.send_message(f":pleading_face: I have a bug... Please set your 0(zeros) to 1(ones)", ephemeral=True)
 
    else:
       print(f"Hey! {interaction_username} tried to set bp to a high amount. Needs vetting.")
