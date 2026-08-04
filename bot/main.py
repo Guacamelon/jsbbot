@@ -3,7 +3,13 @@ import discord
 from discord.ext import commands
 import sqlite3
 import os
+import requests
+import json
 
+def sliceTo(string,slicedAt):
+    return string[0:string.find(slicedAt)]
+def sliceFrom(string,slicedAt):
+    return string[string.find(slicedAt)+(len(slicedAt)):len(string)]
 
 
 # Startup
@@ -221,9 +227,45 @@ async def ribbonShow(interaction: discord.Interaction, user: str=None):
    embed.set_thumbnail(url="https://soggy.cat/static/ssoggycat/main/images/soggycat.webp")
    embed.add_field(name=bp_total, value="total amount of bp collected")
    
-
    await interaction.response.send_message(embed=embed)
-   
+
+@client.tree.command(name="level", description="Get information about a JS&B level!", guild=GUILD_ID)
+async def level(interaction: discord.Interaction, level: str=None):
+
+   print("Type the name of a page on the JS&B Wiki")
+   levelName = level
+
+   requestData = json.loads(requests.get(f"https://justshapesandbeats.fandom.com/api.php?action=query&prop=revisions&rvprop=content&titles={levelName}&rvsection=0&format=json").text)
+
+   levelInfo = (requestData['query']['pages'])[next(iter(requestData['query']['pages']))]['revisions'][0]['*']
+   # levelInfo = levelInfo[0:)]
+   # print(levelInfo)
+
+   # punch this string over and over again until we can turn it into a proper dict
+
+   levelInfo = sliceFrom(levelInfo,"Level|")
+   levelInfo = sliceTo(levelInfo,"}}'''")
+   levelInfo = levelInfo.replace("\n","")
+   levelInfo = levelInfo.replace("|","\",\"")
+   levelInfo = levelInfo.replace(" = ","\":\"")
+   levelInfo = '{"' + levelInfo + '"}'
+   levelInfo = levelInfo.replace("_"," ")
+   levelInfo=levelInfo
+
+   levelInfoDict = json.loads(levelInfo)
+
+   print(levelInfoDict)
+
+   embed = discord.Embed(title=(f"{levelName}"), description="", color=discord.Colour.from_str("#f92073")) 
+
+   #ADD EMBED FIELDS
+   #{'image1': 'HYPE3.png', 'composer': 'Tokyo Machine', 'level_type': '{{ExtraText}}', 'checkpoints': '3', 'duration': '1:30 (3:02)', 'level_number': '34', 'unlocked_by': 'Obtain 1000 Beatpoints'}
+
+   levelInfoDict.pop("image1")
+   for key,val in levelInfoDict.items():
+      embed.add_field(name=key.capitalize(), value=val)
+
+   await interaction.response.send_message(embed = embed)
 
 
 client.run(TOKEN)
