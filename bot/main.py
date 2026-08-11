@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 import discord
 from discord.ext import commands
+from discord import app_commands
 import sqlite3
 import os
 import requests
@@ -113,6 +114,54 @@ async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=
    else:
       print(f"Hey! {interaction_username} tried to set bp to a high amount. Needs vetting.")
       await interaction.response.send_message(f"Anything above 750,000 bp needs verification!", ephemeral=True)
+
+@client.tree.command(name="resetbp", description="Reset each platform's bps count to zero!", guild=GUILD_ID)
+@app_commands.choices(options = [
+   app_commands.Choice(name="Steam",value="steam"),
+   app_commands.Choice(name="NSwitch",value="nswitch"),
+   app_commands.Choice(name="Playstation",value="playst"),
+   app_commands.Choice(name="Xbox",value="xbox")
+])
+async def resetbp(interaction: discord.Interaction, options:app_commands.Choice[str]):
+   
+   interaction_user = interaction.user.id
+   interaction_username = interaction.user.name
+
+   if options.value == "steam":
+      platform = "bp_steam"
+   if options.value == "nswitch":
+      platform = "bp_nswitch"
+   if options.value == "playst":
+      platform = "bp_playst"
+   if options.value == "xbox":
+      platform = "bp_xbox"
+
+   cursor.execute(f"SELECT * FROM consoletest WHERE user_id = '{interaction_user}'")
+   result = cursor.fetchone()
+
+   if result is None:
+   # Create new record
+
+      await interaction.response.send_message(f"You've never set your beatpoints before...", ephemeral=True)
+      
+   else: 
+   # Update existing record
+
+      query = (f"UPDATE consoletest SET {platform} = 0 WHERE user_id = '{interaction_user}'")
+      cursor.execute(query)
+      database.commit()
+
+      print(f"Reset {interaction_username}'s {platform} to ZERO!")
+      await interaction.response.send_message(f"Your bp count was updated for that platform!", ephemeral=True)
+
+   # Update bp total
+   cursor.execute(f"SELECT bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia FROM consoletest WHERE user_id = '{interaction_user}'")
+   bp_banks = cursor.fetchone()
+   int_bptotal = bp_banks[0] + bp_banks[1] + bp_banks[2] + bp_banks[3] + bp_banks[4]
+               
+   query = (f"UPDATE consoletest SET bp_total = ? WHERE user_id = '{interaction_user}'")
+   cursor.execute(query, (int_bptotal,))
+   database.commit()
 
 @client.tree.command(name="beatpoints", description="Show how many beatpoints total you've collected! [Type username plain for other users]", guild=GUILD_ID)
 async def bpShow(interaction: discord.Interaction, user: str=None):
