@@ -167,7 +167,6 @@ async def resetbp(interaction: discord.Interaction, options:app_commands.Choice[
 async def bpShow(interaction: discord.Interaction, user: str=None):
 
    interaction_user = interaction.user.id
-   interaction_username = str(interaction.user.name)
 
    if user is None:
       user = interaction_user
@@ -175,7 +174,7 @@ async def bpShow(interaction: discord.Interaction, user: str=None):
       user_mention = user.replace("<", "")
       user_mention = user_mention.replace("@", "")
       user_mention = user_mention.replace(">", "")
-      user = int(user_mention)
+      user = user_mention
 
    
    cursor.execute(f"SELECT bp_total, bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia, vetted FROM consoletest WHERE user_id = '{user}'")
@@ -188,10 +187,7 @@ async def bpShow(interaction: discord.Interaction, user: str=None):
    bp_xbox = data[4]
    bp_stadia = data[5]
    vetted = data[6]
-   user_info = client.get_user(user)
-
-   print(user)
-   print(user_info)
+   user_info = await client.fetch_user(user)
 
    if bp_total >= 1000000:
       embedcolor = '#E29BCC'
@@ -211,7 +207,7 @@ async def bpShow(interaction: discord.Interaction, user: str=None):
       embedcolor = '#004C51'
 
    embed = discord.Embed(title=(f"{bp_total:,}"), description="total amount of bp collected", color=discord.Colour.from_str(embedcolor))
-   embed.set_author(name="test", icon_url="")
+   embed.set_author(name=user_info.name, icon_url=user_info.avatar)
    if bp_steam > 0:
       embed.add_field(name="Steam", value=(f"{bp_steam:,}"), inline=True)
    if bp_nswitch > 0:
@@ -231,28 +227,27 @@ async def bpShow(interaction: discord.Interaction, user: str=None):
 async def ribbonShow(interaction: discord.Interaction, user: str=None):
 
    interaction_user = interaction.user.id
-   interaction_username = str(interaction.user.name)
-
+   
    if user is None:
       user = interaction_user
-   user_mention = user.replace("<", "")
-   user_mention = user_mention.replace("@", "")
-   user_mention = user_mention.replace(">", "")
-   user = int(user_mention)
+   else:
+      user_mention = user.replace("<", "")
+      user_mention = user_mention.replace("@", "")
+      user_mention = user_mention.replace(">", "")
+      user = user_mention
 
    cursor.execute(f"SELECT * FROM consoletest WHERE user_id = '{user}'")
    data = cursor.fetchone()
 
-   user_info = client.get_user(user)
    display = data[9]
    pronouns = data[10]
-   bp_total = data[3]
+   bp_total = data[2]
    shape = data[11]
    track = data[12]
    artist = data[13]
    usercolor = data[14]
    vetted = data[8]
-   avatar_url = user_info.avatar.url
+   user_info = await client.fetch_user(user)
 
    if bp_total >= 1000000:
       embedcolor = '#E29BCC'
@@ -272,7 +267,7 @@ async def ribbonShow(interaction: discord.Interaction, user: str=None):
       embedcolor = '#004C51'
 
    embed = discord.Embed(title=display, description=pronouns, color=discord.Colour.from_str(embedcolor))
-   embed.set_author(name=user_info.name, icon_url=avatar_url)
+   embed.set_author(name=user_info.name, icon_url=user_info.avatar)
    embed.set_thumbnail(url="https://soggy.cat/static/ssoggycat/main/images/soggycat.webp")
    embed.add_field(name=bp_total, value="total amount of bp collected")
    
