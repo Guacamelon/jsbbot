@@ -278,7 +278,7 @@ async def ribbonShow(interaction: discord.Interaction, user: str=None):
    
    await interaction.response.send_message(embed=embed)
 
-@client.tree.command(name="level", description="Get information about a JS&B level!", guild=GUILD_ID)
+# @client.tree.command(name="level", description="Get information about a JS&B level!", guild=GUILD_ID)
 async def level(interaction: discord.Interaction, level: str=None):
 
    print("Type the name of a page on the JS&B Wiki")
