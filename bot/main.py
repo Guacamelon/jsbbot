@@ -35,9 +35,10 @@ TOKEN: str = os.getenv("TOKEN")
 client = Client(command_prefix="!", intents=intents)
 GUILD_ID = discord.Object(id=1165318900892839946)
 
-database = sqlite3.connect('playerstest.db')
+database = sqlite3.connect('main.db')
 cursor = database.cursor()
-database.execute("CREATE TABLE IF NOT EXISTS consoletest(user_id INT, user_name STR, bp_total INT, bp_steam INT, bp_nswitch INT, bp_playst INT, bp_xbox INT, bp_stadia INT, vetted INT, display_name STR, pronouns STR, shape STR, track STR, artist STR, color STR)")
+database.execute("CREATE TABLE IF NOT EXISTS beatpoints(user_id INT, user_name STR, bp_total INT, bp_steam INT, bp_nswitch INT, bp_playst INT, bp_xbox INT, bp_stadia INT, vetted INT)")
+database.execute("CREATE TABLE IF NOT EXISTS profile(user_id INT, user_name STR, display_name STR, pronouns STR, shape STR, track STR, artist STR, color STR)")
 
 
 
@@ -51,7 +52,7 @@ async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=
    interaction_user = interaction.user.id
    interaction_username = interaction.user.name
 
-   cursor.execute(f"SELECT * FROM consoletest WHERE user_id = '{interaction_user}'")
+   cursor.execute(f"SELECT * FROM beatpoints WHERE user_id = '{interaction_user}'")
    result = cursor.fetchone()
 
    if result is None:
@@ -72,7 +73,7 @@ async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=
          if xbox is None:
             xbox = 0
 
-         query = "INSERT INTO consoletest (user_id, user_name, bp_total, bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia, vetted) VALUES (?, ?, 0, ?, ?, ?, ?, 0, 0)"
+         query = "INSERT INTO beatpoints (user_id, user_name, bp_total, bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia, vetted) VALUES (?, ?, 0, ?, ?, ?, ?, 0, 0)"
          cursor.execute(query, (interaction_user, interaction_username, steam, nswitch, playstation, xbox,))
          database.commit()
 
@@ -92,7 +93,7 @@ async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=
          if xbox is None:
             xbox = result[6]
 
-         query = (f"UPDATE consoletest SET bp_steam = ?, bp_nswitch = ?, bp_playst = ?, bp_xbox = ? WHERE user_id = '{interaction_user}'")
+         query = (f"UPDATE beatpoints SET bp_steam = ?, bp_nswitch = ?, bp_playst = ?, bp_xbox = ? WHERE user_id = '{interaction_user}'")
          cursor.execute(query, (steam, nswitch, playstation, xbox,))
          database.commit()
 
@@ -100,11 +101,11 @@ async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=
          await interaction.response.send_message(f"Your bp count was updated!", ephemeral=True)
 
       # Update bp total
-      cursor.execute(f"SELECT bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia FROM consoletest WHERE user_id = '{interaction_user}'")
+      cursor.execute(f"SELECT bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia FROM beatpoints WHERE user_id = '{interaction_user}'")
       bp_banks = cursor.fetchone()
       int_bptotal = bp_banks[0] + bp_banks[1] + bp_banks[2] + bp_banks[3] + bp_banks[4]
                
-      query = (f"UPDATE consoletest SET bp_total = ? WHERE user_id = '{interaction_user}'")
+      query = (f"UPDATE beatpoints SET bp_total = ? WHERE user_id = '{interaction_user}'")
       cursor.execute(query, (int_bptotal,))
       database.commit()
 
@@ -136,7 +137,7 @@ async def resetbp(interaction: discord.Interaction, options:app_commands.Choice[
    if options.value == "xbox":
       platform = "bp_xbox"
 
-   cursor.execute(f"SELECT * FROM consoletest WHERE user_id = '{interaction_user}'")
+   cursor.execute(f"SELECT * FROM beatpoints WHERE user_id = '{interaction_user}'")
    result = cursor.fetchone()
 
    if result is None:
@@ -147,7 +148,7 @@ async def resetbp(interaction: discord.Interaction, options:app_commands.Choice[
    else: 
    # Update existing record
 
-      query = (f"UPDATE consoletest SET {platform} = 0 WHERE user_id = '{interaction_user}'")
+      query = (f"UPDATE beatpoints SET {platform} = 0 WHERE user_id = '{interaction_user}'")
       cursor.execute(query)
       database.commit()
 
@@ -155,7 +156,7 @@ async def resetbp(interaction: discord.Interaction, options:app_commands.Choice[
       await interaction.response.send_message(f"Your bp count was updated for that platform!", ephemeral=True)
 
    # Update bp total
-   cursor.execute(f"SELECT bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia FROM consoletest WHERE user_id = '{interaction_user}'")
+   cursor.execute(f"SELECT bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia FROM beatpoints WHERE user_id = '{interaction_user}'")
    bp_banks = cursor.fetchone()
    int_bptotal = bp_banks[0] + bp_banks[1] + bp_banks[2] + bp_banks[3] + bp_banks[4]
                
@@ -177,7 +178,7 @@ async def bpShow(interaction: discord.Interaction, user: str=None):
       user = user_mention
 
    
-   cursor.execute(f"SELECT bp_total, bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia, vetted FROM consoletest WHERE user_id = '{user}'")
+   cursor.execute(f"SELECT bp_total, bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia, vetted FROM beatpoints WHERE user_id = '{user}'")
    data = cursor.fetchone()
 
    bp_total = data[0]
@@ -236,17 +237,19 @@ async def ribbonShow(interaction: discord.Interaction, user: str=None):
       user_mention = user_mention.replace(">", "")
       user = user_mention
 
-   cursor.execute(f"SELECT * FROM consoletest WHERE user_id = '{user}'")
-   data = cursor.fetchone()
+   cursor.execute(f"SELECT * FROM profile WHERE user_id = '{user}'")
+   data_file = cursor.fetchone()
+   cursor.execute(f"SELECT bp_total, vetted FROM beatpoints WHERE user_id = '{user}'")
+   data_bp = cursor.fetchone()
 
-   display = data[9]
-   pronouns = data[10]
-   bp_total = data[2]
-   shape = data[11]
-   track = data[12]
-   artist = data[13]
-   usercolor = data[14]
-   vetted = data[8]
+   display = data_file[2]
+   pronouns = data_file[3]
+   shape = data_file[4]
+   track = data_file[5]
+   artist = data_file[6]
+   usercolor = data_file[7]
+   bp_total = data_bp[0]
+   vetted = data_bp[1]
    user_info = await client.fetch_user(user)
 
    if bp_total >= 1000000:
