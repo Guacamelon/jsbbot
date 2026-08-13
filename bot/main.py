@@ -46,7 +46,7 @@ database.execute("CREATE TABLE IF NOT EXISTS profile(user_id INT, user_name STR,
 async def nitroFun(interaction: discord.Interaction):
    await interaction.response.send_message("Nitro Fun sucks!")
 
-@client.tree.command(name="setbp", description="Set how many beatpoints you've collected", guild=GUILD_ID)
+@client.tree.command(name="setbp", description="Set and update how many beatpoints you've collected on each platform", guild=GUILD_ID)
 async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=None, playstation: int=None, xbox: int=None):
 
    interaction_user = interaction.user.id
@@ -114,7 +114,7 @@ async def bpSet(interaction: discord.Interaction, steam: int=None, nswitch: int=
 
    else:
       print(f"Hey! {interaction_username} tried to set bp to a high amount. Needs vetting.")
-      await interaction.response.send_message(f"Anything above 750,000 bp needs verification!", ephemeral=True)
+      await interaction.response.send_message(f"Woah, hold on. Anything above 750,000 bp needs an OK from <@414602987902730241>...!", ephemeral=True)
 
 @client.tree.command(name="resetbp", description="Reset each platform's bps count to zero!", guild=GUILD_ID)
 @app_commands.choices(options = [
@@ -141,10 +141,10 @@ async def resetbp(interaction: discord.Interaction, options:app_commands.Choice[
    result = cursor.fetchone()
 
    if result is None:
-   # Create new record
-
-      await interaction.response.send_message(f"You've never set your beatpoints before...", ephemeral=True)
-      
+   # Can't do it
+      await interaction.response.send_message(f"Reset what? You've never set your beatpoints before... Try /setbp first.", ephemeral=True)
+      return
+   
    else: 
    # Update existing record
 
@@ -153,7 +153,7 @@ async def resetbp(interaction: discord.Interaction, options:app_commands.Choice[
       database.commit()
 
       print(f"Reset {interaction_username}'s {platform} to ZERO!")
-      await interaction.response.send_message(f"Your bp count was updated for that platform!", ephemeral=True)
+      await interaction.response.send_message(f"Your bp count was updated to ZERO for that platform!", ephemeral=True)
 
    # Update bp total
    cursor.execute(f"SELECT bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia FROM beatpoints WHERE user_id = '{interaction_user}'")
@@ -167,114 +167,121 @@ async def resetbp(interaction: discord.Interaction, options:app_commands.Choice[
 @client.tree.command(name="beatpoints", description="Show how many beatpoints total you've collected! [Type username plain for other users]", guild=GUILD_ID)
 async def bpShow(interaction: discord.Interaction, user: str=None):
 
-   interaction_user = interaction.user.id
+   try:
+      interaction_user = interaction.user.id
 
-   if user is None:
-      user = interaction_user
-   else:
-      user_mention = user.replace("<", "")
-      user_mention = user_mention.replace("@", "")
-      user_mention = user_mention.replace(">", "")
-      user = user_mention
+      if user is None:
+         user = interaction_user
+      else:
+         user_mention = user.replace("<", "")
+         user_mention = user_mention.replace("@", "")
+         user_mention = user_mention.replace(">", "")
+         user = user_mention
 
-   
-   cursor.execute(f"SELECT bp_total, bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia, vetted FROM beatpoints WHERE user_id = '{user}'")
-   data = cursor.fetchone()
+      
+      cursor.execute(f"SELECT bp_total, bp_steam, bp_nswitch, bp_playst, bp_xbox, bp_stadia, vetted FROM beatpoints WHERE user_id = '{user}'")
+      data = cursor.fetchone()
 
-   bp_total = data[0]
-   bp_steam = data[1]
-   bp_nswitch = data[2]
-   bp_playst = data[3]
-   bp_xbox = data[4]
-   bp_stadia = data[5]
-   vetted = data[6]
-   user_info = await client.fetch_user(user)
+      bp_total = data[0]
+      bp_steam = data[1]
+      bp_nswitch = data[2]
+      bp_playst = data[3]
+      bp_xbox = data[4]
+      bp_stadia = data[5]
+      vetted = data[6]
+      user_info = await client.fetch_user(user)
 
-   if bp_total >= 1000000:
-      embedcolor = '#E29BCC'
-   elif bp_total >= 500000:
-      embedcolor = '#FF327F'
-   elif bp_total >= 250000:
-      embedcolor = '#FE0062'
-   elif bp_total >= 100000:
-      embedcolor = '#46277A'
-   elif bp_total >= 50000:
-      embedcolor = '#4775FF'
-   elif bp_total >= 25000:
-      embedcolor = '#18BFFE'
-   elif bp_total >= 10000:
-      embedcolor = '#15C2D4'
-   elif bp_total < 10000: 
-      embedcolor = '#004C51'
+      if bp_total >= 1000000:
+         embedcolor = '#E29BCC'
+      elif bp_total >= 500000:
+         embedcolor = '#FF327F'
+      elif bp_total >= 250000:
+         embedcolor = '#FE0062'
+      elif bp_total >= 100000:
+         embedcolor = '#46277A'
+      elif bp_total >= 50000:
+         embedcolor = '#4775FF'
+      elif bp_total >= 25000:
+         embedcolor = '#18BFFE'
+      elif bp_total >= 10000:
+         embedcolor = '#15C2D4'
+      elif bp_total < 10000: 
+         embedcolor = '#004C51'
 
-   embed = discord.Embed(title=(f"{bp_total:,}"), description="total amount of bp collected", color=discord.Colour.from_str(embedcolor))
-   embed.set_author(name=user_info.name, icon_url=user_info.avatar)
-   if bp_steam > 0:
-      embed.add_field(name="Steam", value=(f"{bp_steam:,}"), inline=True)
-   if bp_nswitch > 0:
-      embed.add_field(name="Nintendo Switch", value=(f"{bp_nswitch:,}"), inline=True)
-   if bp_playst > 0:
-      embed.add_field(name="Playstation", value=(f"{bp_playst:,}"), inline=True)
-   if bp_xbox > 0:
-      embed.add_field(name="Xbox", value=(f"{bp_xbox:,}"), inline=True)
-   if bp_stadia > 0:
-      embed.add_field(name="Stadia", value=(f"{bp_stadia:,}"), inline=True)
-   if vetted == 1:
-      embed.set_footer(text="Vetted!")
+      embed = discord.Embed(title=(f"{bp_total:,}"), description="total amount of bp collected", color=discord.Colour.from_str(embedcolor))
+      embed.set_author(name=user_info.name, icon_url=user_info.avatar)
+      if bp_steam > 0:
+         embed.add_field(name="Steam", value=(f"{bp_steam:,}"), inline=True)
+      if bp_nswitch > 0:
+         embed.add_field(name="Nintendo Switch", value=(f"{bp_nswitch:,}"), inline=True)
+      if bp_playst > 0:
+         embed.add_field(name="Playstation", value=(f"{bp_playst:,}"), inline=True)
+      if bp_xbox > 0:
+         embed.add_field(name="Xbox", value=(f"{bp_xbox:,}"), inline=True)
+      if bp_stadia > 0:
+         embed.add_field(name="Stadia", value=(f"{bp_stadia:,}"), inline=True)
+      if vetted == 1:
+         embed.set_footer(text="Vetted!")
 
-   await interaction.response.send_message(embed=embed)
+      await interaction.response.send_message(embed=embed)
+   except:
+      await interaction.response.send_message(f"I don't have anything on this user...", ephemeral=True)
 
 @client.tree.command(name="ribbon", description="Show your ribbon with your profile! [Type username plain for other users]", guild=GUILD_ID)
 async def ribbonShow(interaction: discord.Interaction, user: str=None):
 
-   interaction_user = interaction.user.id
-   
-   if user is None:
-      user = interaction_user
-   else:
-      user_mention = user.replace("<", "")
-      user_mention = user_mention.replace("@", "")
-      user_mention = user_mention.replace(">", "")
-      user = user_mention
+   try:
+      interaction_user = interaction.user.id
+      
+      if user is None:
+         user = interaction_user
+      else:
+         user_mention = user.replace("<", "")
+         user_mention = user_mention.replace("@", "")
+         user_mention = user_mention.replace(">", "")
+         user = user_mention
 
-   cursor.execute(f"SELECT * FROM profile WHERE user_id = '{user}'")
-   data_file = cursor.fetchone()
-   cursor.execute(f"SELECT bp_total, vetted FROM beatpoints WHERE user_id = '{user}'")
-   data_bp = cursor.fetchone()
+      cursor.execute(f"SELECT * FROM profile WHERE user_id = '{user}'")
+      data_file = cursor.fetchone()
+      cursor.execute(f"SELECT bp_total, vetted FROM beatpoints WHERE user_id = '{user}'")
+      data_bp = cursor.fetchone()
 
-   display = data_file[2]
-   pronouns = data_file[3]
-   shape = data_file[4]
-   track = data_file[5]
-   artist = data_file[6]
-   usercolor = data_file[7]
-   bp_total = data_bp[0]
-   vetted = data_bp[1]
-   user_info = await client.fetch_user(user)
+      user_info = await client.fetch_user(user)
+      display = data_file[2] or user_info.display_name 
+      pronouns = data_file[3] or '???'
+      shape = data_file[4] or '???'
+      track = data_file[5] or '???'
+      artist = data_file[6] or '???'
+      usercolor = data_file[7] or '???'
+      bp_total = data_bp[0] or '???'
+      vetted = data_bp[1]
+      
 
-   if bp_total >= 1000000:
-      embedcolor = '#E29BCC'
-   elif bp_total >= 500000:
-      embedcolor = '#FF327F'
-   elif bp_total >= 250000:
-      embedcolor = '#FE0062'
-   elif bp_total >= 100000:
-      embedcolor = '#46277A'
-   elif bp_total >= 50000:
-      embedcolor = '#4775FF'
-   elif bp_total >= 25000:
-      embedcolor = '#18BFFE'
-   elif bp_total >= 10000:
-      embedcolor = '#15C2D4'
-   elif bp_total < 10000: 
-      embedcolor = '#004C51'
+      if bp_total >= 1000000:
+         embedcolor = '#E29BCC'
+      elif bp_total >= 500000:
+         embedcolor = '#FF327F'
+      elif bp_total >= 250000:
+         embedcolor = '#FE0062'
+      elif bp_total >= 100000:
+         embedcolor = '#46277A'
+      elif bp_total >= 50000:
+         embedcolor = '#4775FF'
+      elif bp_total >= 25000:
+         embedcolor = '#18BFFE'
+      elif bp_total >= 10000:
+         embedcolor = '#15C2D4'
+      elif bp_total < 10000: 
+         embedcolor = '#004C51'
 
-   embed = discord.Embed(title=display, description=pronouns, color=discord.Colour.from_str(embedcolor))
-   embed.set_author(name=user_info.name, icon_url=user_info.avatar)
-   embed.set_thumbnail(url="https://soggy.cat/static/ssoggycat/main/images/soggycat.webp")
-   embed.add_field(name=bp_total, value="total amount of bp collected")
-   
-   await interaction.response.send_message(embed=embed)
+      embed = discord.Embed(title=display, description=pronouns, color=discord.Colour.from_str(embedcolor))
+      embed.set_author(name=user_info.name, icon_url=user_info.avatar)
+      embed.set_thumbnail(url="https://soggy.cat/static/ssoggycat/main/images/soggycat.webp")
+      embed.add_field(name=bp_total, value="total amount of bp collected")
+      
+      await interaction.response.send_message(embed=embed)
+   except:
+      await interaction.response.send_message(f"I don't have anything on this user...", ephemeral=True)
 
 # @client.tree.command(name="level", description="Get information about a JS&B level!", guild=GUILD_ID)
 async def level(interaction: discord.Interaction, level: str=None):
